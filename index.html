@@ -1,0 +1,965 @@
+import React, { useState, useEffect, useRef } from 'react';
+// Hapus import '@react-google-maps/api' yang error
+// import { GoogleMap, LoadScript, Marker, InfoWindow } from '@react-google-maps/api';
+import { Factory, DollarSign, TrendingUp, Users, Package, Award, Search, MapPin, Phone, Mail, ChevronRight, Zap, Globe, Rocket, AlertTriangle, Loader2, Compass, Map, HelpCircle, MessageSquare, Send, X, Wrench, User, Pencil, Save, Trash2, Clock } from 'lucide-react';
+
+// =================================================================
+// PENTING: INTEGRASI GOOGLE MAPS API
+// =================================================================
+// 1. Dapatkan API Key Anda dari Google Cloud Console.
+// 2. Aktifkan "Maps JavaScript API" dan "Places API".
+// 3. Masukkan Key Anda di bawah ini:
+// =================================================================
+const GOOGLE_MAPS_API_KEY = "MASUKKAN_API_KEY_ANDA_DI_SINI"; // <-- GANTI INI
+
+// Konfigurasi Peta
+const mapContainerStyle = {
+  width: '100%',
+  height: '100%',
+  minHeight: '400px',
+  borderRadius: '1.5rem',
+  backgroundColor: '#334155', // Latar belakang abu-abu gelap
+};
+const mapLibraries = ["places"];
+
+// Konfigurasi dan Inisialisasi Lokal
+const JAKARTA_FALLBACK = { lat: -6.2088, lng: 106.8456 };
+
+
+// =================================================================
+// DATABASE SUPPLIER (DIPERLUAS TANPA BATAS)
+// Diperbarui dengan data akurat (lat/lng) dari daftar Anda.
+// =================================================================
+const suppliers = [
+  // Data Lama (Diperbarui dengan Coords)
+  { name: 'PT Krakatau Steel', specific_material: 'Baja Berat', location: 'Cilegon, Banten', material: 'Baja', lat: -6.0106, lng: 106.0536, phone: '+62-254-390111', email: 'info@krakatausteel.com' },
+  { name: 'PT Gunung Raja Paksi', specific_material: 'Baja Ringan', location: 'Cikarang, Bekasi', material: 'Baja', lat: -6.2900, lng: 107.1350, phone: '+62-24-7606888', email: 'contact@grp.co.id' },
+  { name: 'PT Chandra Asri Petrochemical', specific_material: 'Polietilen', location: 'Cilegon, Banten', material: 'Kimia', lat: -6.0344, lng: 106.0628, phone: 'info@capcx.com', email: 'corporate@capcx.com' },
+  { name: 'PT Semen Indonesia', specific_material: 'Semen Portland', location: 'Gresik, Jawa Timur', material: 'Semen', lat: -7.1731, lng: 112.6375, phone: '+62-31-3981732', email: 'corsec@semenindonesia.co.id' },
+  { name: 'PT Asia Pulp & Paper (APP)', specific_material: 'Pulp (Serat Kayu)', location: 'Perawang, Riau', material: 'Kertas', lat: 0.8764, lng: 101.4531, phone: '+62-761-492222', email: 'contact@app.co.id' },
+  { name: 'PT Sri Rejeki Isman (Sritex)', specific_material: 'Benang Tekstil', location: 'Sukoharjo, Jawa Tengah', material: 'Tekstil', lat: -7.6831, lng: 110.8408, phone: '+62-271-593288', email: 'corsec@sritex.co.id' },
+  
+  // Data Baru dari Daftar Anda (Buyer/Supplier)
+  { name: 'PT Indofood CBP Sukses Makmur', specific_material: 'Tepung Terigu', location: 'Jakarta Selatan', material: 'Pangan', lat: -6.2297, lng: 106.8096, phone: '+62-21-57958822', email: 'info@indofood.com' },
+  { name: 'PT Mayora Indah Tbk', specific_material: 'Gula', location: 'Jakarta Barat', material: 'Pangan', lat: -6.1554, lng: 106.7367, phone: '+62-21-80637100', email: 'consumer@mayora.co.id' },
+  { name: 'PT Unilever Indonesia', specific_material: 'Minyak Sawit (Palm Oil)', location: 'Tangerang, Banten', material: 'Pangan', lat: -6.2831, lng: 106.6646, phone: '+62-21-80827000', email: 'tanyadok.uid@unilever.com' },
+  { name: 'PT Toyota Astra Motor', specific_material: 'Komponen Otomotif', location: 'Jakarta Utara', material: 'Otomotif', lat: -6.1200, lng: 106.8778, phone: '+62-21-3901414', email: 'pr@toyota.astra.co.id' },
+  { name: 'PT Panasonic Manufacturing', specific_material: 'Komponen IC', location: 'Bekasi, Jawa Barat', material: 'Elektronik', lat: -6.2383, lng: 106.9925, phone: '+62-21-8980202', email: 'cs.panasonic@id.panasonic.com' },
+  { name: 'PT Kalbe Farma Tbk', specific_material: 'Etanol', location: 'Jakarta Timur', material: 'Farmasi', lat: -6.1930, lng: 106.9037, phone: '+62-21-42873888', email: 'kalbe@kalbe.co.id' },
+  { name: 'PT Wijaya Karya (WIKA)', specific_material: 'Besi Konstruksi', location: 'Jakarta Timur', material: 'Konstruksi', lat: -6.2825, lng: 106.8837, phone: '+62-21-8192808', email: 'wika@wika.co.id' },
+  { name: 'PT Pupuk Kaltim', specific_material: 'Bahan Kimia Nitrogen', location: 'Bontang, Kaltim', material: 'Kimia', lat: 0.1215, lng: 117.4851, phone: '+62-548-41202', email: 'corsec@pupukkaltim.com' },
+  { name: 'PT Kirana Megatara', specific_material: 'Karet (Rubber)', location: 'Jakarta', material: 'Rubber', lat: -6.2185, lng: 106.8023, phone: '+62-21-57998000', email: 'info@kiranamegatara.com' },
+  { name: 'PT Lotte Chemical Titan', specific_material: 'Polietilen', location: 'Merak, Banten', material: 'Kimia', lat: -5.9283, lng: 106.0531, phone: '+62-254-571400', email: 'info@lottechem.co.id' },
+  { name: 'PT SMART Tbk (Sinarmas)', specific_material: 'Minyak Sawit (Palm Oil)', location: 'Jakarta', material: 'Pangan', lat: -6.2248, lng: 106.8080, phone: '+62-21-50338899', email: 'info@smart-tbk.com' },
+  { name: 'IMCD Indonesia', specific_material: 'Adhesives, Resins', location: 'Jakarta', material: 'Kimia', lat: -6.2294, lng: 106.8198, phone: '+62-21-29885800', email: 'info@imcd.co.id' },
+];
+
+
+// Data Departemen (Dipertahankan)
+const departments = [
+  { id: 'production', name: 'Departemen Produksi', icon: Wrench, color: 'from-blue-500 to-blue-600', accent: 'text-blue-400',
+    sections: [
+      { name: 'Perencanaan & Pengendalian', tasks: ['Menyusun jadwal produksi', 'Menentukan kebutuhan bahan baku'], contact: { name: 'Budi Santoso', phone: '+62 812-3456-7890', email: 'budi.santoso@company.coid' }},
+      { name: 'Proses Produksi', tasks: ['Mengubah bahan baku menjadi barang jadi'], contact: { name: 'Siti Nurhaliza', phone: '+62 813-4567-8901', email: 'siti.nurhaliza@company.co.id' }},
+      { name: 'Pengembangan Produksi', tasks: ['Inovasi dan peningkatan proses'], contact: { name: 'Rudi Hartono', phone: '+62 818-9012-3456', email: 'rudi.hartono@company.co.id' }}
+    ]
+  },
+  { id: 'finance', name: 'Departemen Keuangan', icon: DollarSign, color: 'from-green-500 to-green-600', accent: 'text-green-400',
+    sections: [
+      { name: 'Akuntansi', tasks: ['Membuat laporan keuangan'], contact: { name: 'Linda Wijaya', phone: '+62 819-0123-4567', email: 'linda.wijaya@company.co.id' }},
+      { name: 'Analisis Keuangan', tasks: ['Analisis profitabilitas dan investasi'], contact: { name: 'Maya Sari', phone: '+62 823-4567-8901', email: 'maya.sari@company.co.id' }},
+    ]
+  },
+  { id: 'marketing', name: 'Departemen Pemasaran', icon: TrendingUp, color: 'from-purple-500 to-purple-600', accent: 'text-purple-400',
+    sections: [
+      { name: 'Riset dan Analisis Pasar', tasks: ['Analisis tren dan kompetitor'], contact: { name: 'Andi Wijaya', phone: '+62 826-7890-1234', email: 'andi.wijaya@company.co.id' }},
+      { name: 'Layanan Pelanggan', tasks: ['Keluhan dan permintaan pelanggan'], contact: { name: 'Nina Kartika', phone: '+62 831-2345-6789', email: 'nina.kartika@company.co.id' }}
+    ]
+  },
+  { id: 'hr', name: 'Departemen SDM', icon: Users, color: 'from-orange-500 to-orange-600', accent: 'text-orange-400',
+    sections: [
+      { name: 'Recruitment', tasks: ['Memperoleh tenaga kerja kompeten'], contact: { name: 'Yudi Setiawan', phone: '+62 832-3456-7890', email: 'yudi.setiawan@company.co.id' }},
+      { name: 'Pelatihan', tasks: ['Peningkatan kompetensi karyawan'], contact: { name: 'Lina Marlina', phone: '+62 833-4567-8901', email: 'lina.marlina@company.co.id' }},
+    ]
+  },
+  { id: 'procurement', name: 'Departemen Pengadaan & Rantai Pasok', icon: Package, color: 'from-cyan-500 to-cyan-600', accent: 'text-cyan-400',
+    sections: [
+      { name: 'Pengadaan', tasks: ['Pembelian bahan baku', 'AI Supplier Search'], contact: { name: 'Anton Wijaya', phone: '+62 840-1234-5678', email: 'anton.wijaya@company.co.id' }, isHighlighted: true },
+      { name: 'Manajemen Rantai Pasok', tasks: ['Alur rantai pasok'], contact: { name: 'Rizki Ramadan', phone: '+62 844-5678-9012', email: 'rizki.ramadan@company.co.id' }},
+    ]
+  },
+  { id: 'quality', name: 'Departemen Manajemen Kualitas', icon: Award, color: 'from-red-500 to-red-600', accent: 'text-red-400',
+    sections: [
+      { name: 'Pengendalian Kualitas', tasks: ['Pemeriksaan produk dan proses'], contact: { name: 'Taufik Rahman', phone: '+62 847-8901-2345', email: 'taufik.rahman@company.co.id' }},
+      { name: 'Mutu Pemasok', tasks: ['Mengawasi mutu bahan supplier'], contact: { name: 'Rian Firmansyah', phone: '+62 851-2345-6789', email: 'rian.firmansyah@company.co.id' }}
+    ]
+  }
+];
+
+
+// FUNGSI UTILITY JARAK HAVERSINE (Client-side distance)
+const calculateDistance = (lat1, lng1, lat2, lng2) => {
+  if (!lat1 || !lng1 || !lat2 || !lng2) return 0;
+  const R = 6371; // Radius Bumi dalam kilometer
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+// =================================================================
+// KOMPONEN UTAMA APP
+// =================================================================
+const App = () => {
+  // === APP STATES ===
+  const [selectedDepartment, setSelectedDepartment] = useState(null);
+  const [selectedSection, setSelectedSection] = useState(null);
+  const [showSupplierSearch, setShowSupplierSearch] = useState(true);
+  const [searchMaterial, setSearchMaterial] = useState('');
+  const [userLocation, setUserLocation] = useState(null);
+  const [locationError, setLocationError] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showAIAssistant, setShowAIAssistant] = useState(false);
+  const [showGPSModal, setShowGPSModal] = useState(false);
+  
+  // State untuk Peta (Refaktor Vanilla JS)
+  const mapRef = useRef(null); // Referensi ke elemen div peta
+  const [isMapApiLoaded, setIsMapApiLoaded] = useState(false);
+  const [mapInstance, setMapInstance] = useState(null);
+  const [markers, setMarkers] = useState([]); // Menyimpan instances marker
+  const [infoWindow, setInfoWindow] = useState(null); // Menyimpan instance InfoWindow
+  
+  const [selectedSupplier, setSelectedSupplier] = useState(null); 
+  const [isSearchPending, setIsSearchPending] = useState(false); // <-- State baru untuk alur GPS
+
+  // Riwayat Pencarian menggunakan LocalStorage
+  const [searchHistory, setSearchHistory] = useState([]);
+
+  // State untuk Pengguna Lokal (Nama)
+  const [userName, setUserName] = useState(() => localStorage.getItem('smiUserName') || 'Pengguna SMI');
+  const [isEditingName, setIsEditingName] = useState(false);
+
+
+  // 1. KELOLA NAMA PENGGUNA DENGAN LOCAL STORAGE
+  useEffect(() => {
+    localStorage.setItem('smiUserName', userName);
+  }, [userName]);
+
+  const handleSaveName = () => {
+    setIsEditingName(false);
+  };
+
+  // 2. KELOLA RIWAYAT PENCARIAN DENGAN LOCAL STORAGE
+  useEffect(() => {
+    try {
+      const storedHistory = JSON.parse(localStorage.getItem('smiSearchHistory') || '[]');
+      setSearchHistory(storedHistory);
+    } catch (e) {
+      console.error("Gagal memuat riwayat dari Local Storage:", e);
+      setSearchHistory([]);
+    }
+  }, []);
+
+  const updateSearchHistory = (newEntry) => {
+    setSearchHistory(prev => {
+      const history = [{ ...newEntry, timestamp: new Date().toISOString() }, ...prev];
+      const limitedHistory = history.slice(0, 5); // Batasi 5 item
+      try {
+        localStorage.setItem('smiSearchHistory', JSON.stringify(limitedHistory));
+      } catch (e) {
+        console.error("Gagal menyimpan riwayat ke Local Storage:", e);
+      }
+      return limitedHistory;
+    });
+  };
+
+  // 3. LOGIKA PENCARIAN SUPPLIER (DIREFAKTOR)
+  
+  // Logika inti pencarian
+  const runSearchLogic = async (locationToSearchFrom) => {
+      if (!searchMaterial) {
+          setIsSearchPending(false); // Hentikan jika tidak ada material
+          return;
+      }
+
+      setIsSearchPending(false); // Hapus flag pending
+      setIsSearching(true);
+      setSearchResults([]);
+      setSelectedSupplier(null);
+      if(infoWindow) infoWindow.close();
+
+      // Simulasi waktu loading AI
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      const materialLower = searchMaterial.toLowerCase();
+      const searchRegex = new RegExp(materialLower, 'i');
+
+      const filtered = suppliers
+        .filter(s => searchRegex.test(s.material) || searchRegex.test(s.specific_material) || searchRegex.test(s.name))
+        .map(s => ({
+          ...s,
+          distance: calculateDistance(locationToSearchFrom.lat, locationToSearchFrom.lng, s.lat, s.lng)
+        }))
+        .sort((a, b) => a.distance - b.distance);
+
+      setSearchResults(filtered);
+      setIsSearching(false);
+
+      if(mapInstance && locationToSearchFrom) {
+          mapInstance.panTo(locationToSearchFrom);
+          mapInstance.setZoom(9);
+      }
+
+      updateSearchHistory({
+        query: searchMaterial,
+        results: filtered.length,
+        location: { lat: locationToSearchFrom.lat, lng: locationToSearchFrom.lng }
+      });
+  };
+
+  // Handler tombol pencarian
+  const searchSuppliers = async () => {
+    const isSimulatedLocation = userLocation && userLocation.lat === JAKARTA_FALLBACK.lat && userLocation.lng === JAKARTA_FALLBACK.lng;
+
+    // Jika GPS tidak ada ATAU GPS adalah simulasi (karena error), tampilkan modal
+    if (!userLocation || (isSimulatedLocation && locationError)) {
+      setIsSearchPending(true); // Set flag bahwa pencarian sedang menunggu GPS
+      setShowGPSModal(true);
+      return;
+    }
+
+    // Jika GPS sudah ada (lokasi nyata), langsung jalankan pencarian
+    await runSearchLogic(userLocation);
+  };
+
+
+  // 4. GEOLOCATION (Diperbaiki untuk re-try dan alur pencarian)
+  const attemptGetLocation = () => {
+    setIsLoadingLocation(true);
+    setLocationError('');
+    // Jangan set userLocation ke null agar peta tidak error jika gagal
+    // setUserLocation(null); 
+
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const newLocation = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          };
+          setUserLocation(newLocation);
+          setLocationError('');
+          setIsLoadingLocation(false);
+          setShowGPSModal(false);
+          
+          // === FIX UTAMA ===
+          // Jika pencarian sedang 'pending' (menunggu GPS), jalankan pencarian sekarang
+          if (isSearchPending) {
+              runSearchLogic(newLocation);
+          }
+        },
+        (error) => {
+          setLocationError('Akses lokasi ditolak. Menggunakan lokasi simulasi Jakarta.');
+          setUserLocation(JAKARTA_FALLBACK);
+          setIsLoadingLocation(false);
+          setIsSearchPending(false); // Batalkan pencarian jika user menolak lagi
+        }
+      );
+    } else {
+      setLocationError('Browser tidak mendukung Geolocation. Menggunakan lokasi simulasi Jakarta.');
+      setUserLocation(JAKARTA_FALLBACK);
+      setIsLoadingLocation(false);
+      setIsSearchPending(false); // Batalkan pencarian
+    }
+  };
+
+  useEffect(() => {
+    attemptGetLocation(); // Coba dapatkan lokasi saat mount
+  }, []);
+
+
+  // 5. FUNGSI UTILITY MAPS
+  const openSupplierWeb = (supplierName) => {
+    const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(supplierName)} official website`;
+    window.open(googleSearchUrl, '_blank');
+  };
+
+  const getMapsDirectionUrl = (supplier) => {
+    if (!userLocation || !supplier) return '#';
+    return `https://www.google.com/maps/dir/${userLocation.lat},${userLocation.lng}/${supplier.lat},${supplier.lng}`;
+  };
+
+  const getMapsLocationUrl = (lat, lng) => {
+    return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+  };
+  
+  // =================================================================
+  // REFAKTOR GOOGLE MAPS (VANILLA JS)
+  // =================================================================
+
+  // Helper untuk konten InfoWindow
+  const getInfoWindowContent = (supplier) => {
+    window.openSupplierWeb = openSupplierWeb; 
+    
+    return `
+      <div class="p-1 text-black" style="max-width: 250px; font-family: Inter, sans-serif;">
+        <h4 style="font-size: 1rem; font-weight: 700; color: #111827; margin-bottom: 4px;">${supplier.name}</h4>
+        <p style="font-size: 0.875rem; color: #4B5563;">${supplier.location}</p>
+        <p style="font-size: 0.875rem; color: #4B5563; margin-top: 2px;">${supplier.phone}</p>
+        <span style="display: inline-block; margin-top: 8px; padding: 2px 8px; background-color: #D1FAE5; color: #065F46; border-radius: 9999px; font-weight: 500; font-size: 0.75rem;">${supplier.specific_material}</span>
+        <div style="display: flex; gap: 8px; margin-top: 12px;">
+            <a
+                href="${getMapsDirectionUrl(supplier)}"
+                target="_blank"
+                rel="noopener noreferrer"
+                style="font-size: 0.75rem; font-weight: 600; color: #2563EB; text-decoration: none;"
+            >
+                Dapatkan Arah
+            </a>
+            <button
+                onclick="window.openSupplierWeb('${supplier.name}')"
+                style="font-size: 0.75rem; font-weight: 600; color: #2563EB; background: none; border: none; padding: 0; cursor: pointer;"
+            >
+                Cari Web
+            </button>
+        </div>
+      </div>
+    `;
+  };
+
+  // 1. Load Google Maps Script
+  useEffect(() => {
+    if (GOOGLE_MAPS_API_KEY === "MASUKKAN_API_KEY_ANDA_DI_SINI") {
+      console.warn("Google Maps API Key missing.");
+      return; 
+    }
+    if (window.google && window.google.maps) {
+      setIsMapApiLoaded(true);
+      return;
+    }
+    if (window.loadingGoogleMapsApi) {
+        return;
+    }
+    window.loadingGoogleMapsApi = true;
+
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+      setIsMapApiLoaded(true);
+      window.loadingGoogleMapsApi = false;
+    };
+    script.onerror = () => {
+      console.error("Gagal memuat Google Maps Script.");
+      window.loadingGoogleMapsApi = false;
+    };
+    document.body.appendChild(script);
+
+  }, []); 
+
+  // 2. Inisialisasi Peta
+  useEffect(() => {
+    if (isMapApiLoaded && userLocation && mapRef.current && !mapInstance) {
+      const map = new window.google.maps.Map(mapRef.current, {
+        center: userLocation,
+        zoom: 10,
+        mapId: "SMI_MAP_ID", 
+        disableDefaultUI: true,
+        zoomControl: true,
+      });
+      setMapInstance(map);
+      setInfoWindow(new window.google.maps.InfoWindow());
+
+      // Tambah marker lokasi pengguna (pabrik)
+      new window.google.maps.Marker({
+        position: userLocation,
+        map: map,
+        title: "Lokasi Pabrik Anda",
+        icon: {
+            path: 'M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z', 
+            fillColor: '#2563EB', 
+            fillOpacity: 1,
+            strokeColor: '#FFFFFF',
+            strokeWeight: 2,
+            scale: 1.5,
+            anchor: new window.google.maps.Point(12, 24),
+          }
+      });
+    }
+    // Update map center jika userLocation berubah (misalnya dari fallback ke GPS nyata)
+    if (mapInstance && userLocation) {
+        mapInstance.panTo(userLocation);
+    }
+  }, [isMapApiLoaded, userLocation, mapInstance]);
+
+  // 3. Update Markers ketika Hasil Pencarian Berubah
+  useEffect(() => {
+    if (!mapInstance || !infoWindow) return;
+
+    markers.forEach(marker => marker.setMap(null));
+    setMarkers([]);
+
+    const newMarkers = searchResults.map((supplier, idx) => {
+      const marker = new window.google.maps.Marker({
+        position: { lat: supplier.lat, lng: supplier.lng },
+        map: mapInstance,
+        title: supplier.name,
+        animation: window.google.maps.Animation.DROP,
+        icon: {
+            path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z', 
+            fillColor: idx === 0 ? '#10B981' : '#71717A', 
+            fillOpacity: 1,
+            strokeWeight: 0,
+            scale: 1.2,
+            anchor: new window.google.maps.Point(12, 24),
+        }
+      });
+
+      marker.addListener('click', () => {
+        infoWindow.setContent(getInfoWindowContent(supplier));
+        infoWindow.open(mapInstance, marker);
+        mapInstance.panTo(marker.getPosition());
+        setSelectedSupplier(supplier); 
+      });
+      return marker;
+    });
+
+    setMarkers(newMarkers);
+
+  }, [searchResults, mapInstance, infoWindow]); 
+
+
+  // Handler untuk klik di daftar (agar peta ter-update)
+  const handleSupplierClick = (supplier) => {
+    if (!mapInstance || !infoWindow) return;
+    setSelectedSupplier(supplier);
+    const marker = markers.find(m => m.getTitle() === supplier.name);
+    
+    if (marker) {
+      infoWindow.setContent(getInfoWindowContent(supplier));
+      infoWindow.open(mapInstance, marker);
+      mapInstance.panTo(marker.getPosition());
+      mapInstance.setZoom(12);
+    } else {
+      mapInstance.panTo({ lat: supplier.lat, lng: supplier.lng });
+      mapInstance.setZoom(12);
+    }
+  };
+
+
+  // =================================================================
+  // KOMPONEN UI ANAK (Tidak berubah)
+  // =================================================================
+
+  // Komponen Notifikasi GPS
+  const GPSModal = () => (
+    <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+      <div className="bg-slate-800 rounded-xl p-8 max-w-lg w-full border border-yellow-500 shadow-2xl">
+        <div className="text-center mb-6">
+          <AlertTriangle className="w-10 h-10 text-yellow-500 mx-auto mb-3" />
+          <h3 className="text-2xl font-bold text-white">Perhatian: Lokasi Pabrik Tidak Ditemukan</h3>
+        </div>
+        <p className="text-slate-300 mb-4">
+          GPS Anda tidak aktif atau akses lokasi diblokir oleh browser. Pencarian supplier membutuhkan lokasi pabrik Anda yang akurat.
+        </p>
+        <p className="text-sm text-yellow-400 mb-6">
+          **Mohon izinkan akses lokasi pada browser Anda dan ulangi pencarian.**
+        </p>
+        <div className="flex justify-end space-x-3">
+          <button
+            onClick={() => {
+                setShowGPSModal(false);
+                setIsSearchPending(false); // Batalkan pencarian jika ditutup
+            }}
+            className="px-6 py-2 border border-slate-600 text-slate-300 font-semibold rounded-lg hover:bg-slate-700 transition"
+          >
+            Tutup
+          </button>
+          <button
+            onClick={attemptGetLocation} // Tombol "Ya" memicu upaya ulang
+            className="px-6 py-2 bg-cyan-600 text-white font-semibold rounded-lg hover:bg-cyan-500 transition"
+          >
+            Ya, Coba Aktifkan GPS Saya
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+
+  // Komponen Asisten AI
+  const AIAssistant = () => {
+    const [messages, setMessages] = useState([
+      { sender: 'AI', text: 'Halo! Saya Asisten Lokasi Pintar SMI. Apa yang ingin Anda ketahui tentang lokasi atau GPS?' }
+    ]);
+    const [input, setInput] = useState('');
+
+    const handleSend = () => {
+      if (!input.trim()) return;
+
+      const userMessage = input;
+      setMessages(prev => [...prev, { sender: 'User', text: userMessage }]);
+      setInput('');
+
+      let response = '';
+      const lowerCaseMsg = userMessage.toLowerCase();
+
+      const isSimulated = userLocation && userLocation.lat === JAKARTA_FALLBACK.lat && userLocation.lng === JAKARTA_FALLBACK.lng;
+      const isLocationActive = userLocation && !isSimulated;
+
+      if (lowerCaseMsg.includes('lokasi saya') || lowerCaseMsg.includes('di mana') || lowerCaseMsg.includes('pabrik saya') || lowerCaseMsg.includes('ya')) {
+        if (!userLocation && isLoadingLocation) {
+          response = 'Saya masih mencoba mendapatkan koordinat GPS Anda. Mohon tunggu sebentar.';
+        } else if (isSimulated) {
+          response = 'Saat ini, kami belum berhasil mendapatkan lokasi GPS Anda. Gunakan fitur GPS aktif untuk pencarian yang akurat.';
+        } else {
+          response = `Lokasi pabrik Anda saat ini adalah: Latitude ${userLocation.lat.toFixed(4)}, Longitude ${userLocation.lng.toFixed(4)} (Lokasi GPS Aktif). Klik tombol di bawah untuk melihat titik lokasi di Google Maps:`;
+        }
+      } else if (lowerCaseMsg.includes('fungsi gps') || lowerCaseMsg.includes('kenapa perlu lokasi')) {
+        response = 'Fungsi GPS penting untuk fitur AI Procurement. Data lokasi Anda digunakan untuk menghitung jarak Haversine secara akurat ke lokasi pemasok terdekat dan merekomendasikan opsi logistik tercepat.';
+      } else if (lowerCaseMsg.includes('peta') || lowerCaseMsg.includes('google map') || lowerCaseMsg.includes('titik lokasi') || lowerCaseMsg.includes('jawa barat')) {
+        if (isLocationActive) {
+            response = `Tentu. Lokasi pabrik Anda adalah Lat ${userLocation.lat.toFixed(4)}, Lng ${userLocation.lng.toFixed(4)}. Klik tombol di bawah untuk melihatnya:`;
+        } else {
+            response = 'Mohon maaf, saya tidak dapat menunjukkan lokasi Anda di peta karena GPS belum aktif.';
+        }
+      } else {
+        response = 'Mohon maaf, saya hanya dapat membantu dengan pertanyaan terkait lokasi pabrik, fungsionalitas GPS/Peta, atau AI Procurement.';
+      }
+
+      setTimeout(() => {
+        if ((response.includes('Klik tombol di bawah') || response.includes('Lokasi pabrik Anda saat ini')) && isLocationActive) {
+            setMessages(prev => [...prev, {
+                sender: 'AI',
+                text: response,
+                mapButton: {
+                    text: 'Lihat Lokasi Pabrik di Peta',
+                    url: getMapsLocationUrl(userLocation.lat, userLocation.lng)
+                }
+            }]);
+        } else {
+            setMessages(prev => [...prev, { sender: 'AI', text: response }]);
+        }
+      }, 500);
+    };
+
+    return (
+      <div className="fixed bottom-4 right-4 w-full max-w-sm bg-slate-800/95 backdrop-blur-lg rounded-xl shadow-2xl border border-cyan-500/50 z-50 transition-all duration-300">
+        <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50 rounded-t-xl">
+          <h5 className="text-lg font-bold text-cyan-400 flex items-center">
+            <MessageSquare className="w-5 h-5 mr-2" />
+            Asisten Lokasi SMI
+          </h5>
+          <button onClick={() => setShowAIAssistant(false)} className="p-1 rounded-full text-slate-400 hover:bg-slate-700 transition">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="h-64 overflow-y-auto p-4 space-y-3">
+          {messages.map((msg, index) => (
+            <div key={index} className={`flex ${msg.sender === 'User' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[85%] p-3 rounded-lg text-sm ${
+                msg.sender === 'User'
+                ? 'bg-cyan-600 text-white'
+                : 'bg-slate-700 text-slate-200'
+              }`}>
+                {msg.text}
+                {msg.mapButton && (
+                    <a
+                        href={msg.mapButton.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-3 inline-flex items-center space-x-2 px-3 py-1 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg font-semibold transition text-xs"
+                    >
+                        <Map className='w-4 h-4'/>
+                        <span>{msg.mapButton.text}</span>
+                    </a>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="p-4 border-t border-slate-700 flex space-x-2">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+            placeholder="Tanya tentang lokasi..."
+            className="flex-1 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-cyan-500"
+          />
+          <button
+            onClick={handleSend}
+            className="p-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 transition disabled:opacity-50"
+            disabled={!input.trim()}
+          >
+            <Send className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // Komponen Riwayat Pencarian
+  const SearchHistory = () => {
+    return (
+        <div className="p-4 bg-slate-700/50 rounded-xl border border-slate-600 mt-4">
+            <h4 className="text-lg font-bold text-white mb-3 flex items-center space-x-2">
+                <Clock className="w-5 h-5 text-cyan-400"/>
+                <span>Riwayat Pencarian (Disimpan Lokal)</span>
+            </h4>
+            {searchHistory.length > 0 ? (
+                <ul className="space-y-2 text-sm text-slate-300">
+                    {searchHistory.map((item, index) => (
+                        <li key={index} className="flex justify-between p-2 bg-slate-800/50 rounded-lg">
+                            <span className="font-semibold text-white truncate">{item.query}</span>
+                            <span className="text-xs text-slate-400 ml-4 whitespace-nowrap">{item.results} hasil | {new Date(item.timestamp).toLocaleTimeString()}</span>
+                        </li>
+                    ))}
+                </ul>
+            ) : (
+                <p className="text-sm text-slate-400 italic">Belum ada riwayat pencarian yang tersimpan di browser ini.</p>
+            )}
+        </div>
+      );
+  };
+
+
+  // Card Departemen
+  const DepartmentCard = ({ dept }) => {
+    const Icon = dept.icon;
+    const isSelected = selectedDepartment?.id === dept.id;
+    return (
+      <button
+        onClick={() => {
+          setSelectedDepartment(dept);
+          setSelectedSection(null);
+        }}
+        className={`p-6 rounded-xl border-2 w-full transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] ${
+          isSelected
+            ? 'border-cyan-500 bg-slate-800 shadow-2xl shadow-cyan-800/50'
+            : 'border-slate-700 bg-slate-800/50 hover:border-slate-600'
+        } ${dept.id === 'procurement' ? 'col-span-1 md:col-span-2 lg:col-span-1' : ''}`}
+      >
+        <div className={`p-3 rounded-full bg-slate-700/50 inline-block mb-4 ${dept.accent.replace('text-', 'text-xl')}`}>
+          <Icon className="w-8 h-8 text-white" />
+        </div>
+        <h3 className={`text-xl font-bold text-white mb-1 ${isSelected ? 'text-cyan-400' : ''}`}>{dept.name}</h3>
+        <p className="text-sm text-slate-400">Hubungan Antar-Departemen Aktif</p>
+      </button>
+    );
+  };
+
+  // Komponen Tampilan Detail Bagian/Seksi
+  const SectionDetail = ({ section }) => (
+    <div className="mt-6 bg-slate-800/50 backdrop-blur-xl rounded-2xl p-8 border border-cyan-500/30 shadow-2xl">
+      <h4 className="text-3xl font-bold text-white mb-4">{section.name}</h4>
+      <div className="grid md:grid-cols-3 gap-6">
+        <div className="md:col-span-2">
+          <h5 className="text-sm font-semibold text-cyan-300 mb-3 border-b border-slate-700 pb-2">Tugas & Tanggung Jawab:</h5>
+          <ul className="space-y-3">
+            {section.tasks.map((task, idx) => (
+              <li key={idx} className="flex items-start space-x-2 text-slate-200">
+                <ChevronRight className="w-5 h-5 text-cyan-400 mt-0.5" />
+                <span>{task}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="bg-slate-700/40 rounded-xl p-5 border border-slate-600/50 shadow-inner">
+          <h5 className="text-sm font-semibold text-cyan-300 mb-3 border-b border-slate-600 pb-2">Kontak Person:</h5>
+          <p className="text-white font-extrabold text-xl">{section.contact.name}</p>
+          <div className="flex items-center space-x-2 text-slate-300 mt-3"><Phone className="w-4 h-4 text-cyan-400" /><span>{section.contact.phone}</span></div>
+          <div className="flex items-center space-x-2 text-slate-300 mt-1"><Mail className="w-4 h-4 text-cyan-400" /><span>{section.contact.email}</span></div>
+          {section.isHighlighted && (
+            <div className="mt-4 p-3 bg-cyan-700/30 rounded-lg text-cyan-300 flex items-center space-x-2">
+              <Zap className="w-4 h-4" />
+              <span className="text-xs font-medium">Hubungan langsung ke fitur **AI Supplier Search**</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  // Komponen Tampilan Hasil Pencarian Supplier (Daftar)
+  const SupplierResult = ({ supplier, isClosest }) => (
+    <button 
+        onClick={() => handleSupplierClick(supplier)}
+        className={`w-full text-left p-4 rounded-xl shadow-lg transition duration-150 ${
+            selectedSupplier?.name === supplier.name 
+            ? 'bg-cyan-900/60 border-l-4 border-cyan-400' 
+            : 'bg-slate-700/40 border-l-4 border-slate-600 hover:bg-slate-700/50'
+        } ${isClosest && selectedSupplier?.name !== supplier.name ? 'border-l-4 border-green-500' : ''}`}
+    >
+      <div className="flex justify-between items-start">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center">
+            {isClosest && <Rocket className="w-4 h-4 text-green-400 mr-2 flex-shrink-0" />}
+            <h3 className="text-lg font-bold text-white truncate">{supplier.name}</h3>
+          </div>
+          <div className="flex items-center space-x-3 mt-1 text-xs text-slate-300">
+            <span className="flex items-center space-x-1"><MapPin className="w-3 h-3 text-cyan-400" /><span>{supplier.location}</span></span>
+            <span className="px-2 py-0.5 bg-green-500/20 text-green-300 rounded-full font-medium">{supplier.specific_material}</span>
+          </div>
+        </div>
+        <div className="text-right flex-shrink-0 ml-2">
+          <p className={`text-xl font-extrabold ${isClosest ? 'text-green-400' : 'text-slate-300'}`}>{supplier.distance.toFixed(0)} km</p>
+          <p className="text-xs text-slate-500">Jarak</p>
+        </div>
+      </div>
+    </button>
+  );
+
+  // =================================================================
+  // KOMPONEN PETA (VANILLA JS)
+  // =================================================================
+  const MapComponent = () => (
+    <div 
+        ref={mapRef} 
+        style={mapContainerStyle} 
+        className="w-full h-full min-h-[500px] lg:min-h-full rounded-2xl overflow-hidden border border-cyan-700/50 shadow-2xl relative"
+    >
+        {/* Fallback jika API Key hilang */}
+        {GOOGLE_MAPS_API_KEY === "MASUKKAN_API_KEY_ANDA_DI_SINI" && (
+            <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-10 p-4">
+                <div className="text-center">
+                    <AlertTriangle className="w-10 h-10 text-yellow-500 mx-auto mb-3" />
+                    <h3 className="text-xl font-bold text-yellow-400">Peta Google Maps Belum Aktif</h3>
+                    {/* Kalimat yang diminta pengguna telah dihapus */}
+                </div>
+            </div>
+        )}
+        {/* Loading state */}
+        {!isMapApiLoaded && GOOGLE_MAPS_API_KEY !== "MASUKKAN_API_KEY_ANDA_DI_SINI" && (
+            <div className="absolute inset-0 bg-slate-700 flex items-center justify-center z-0">
+                <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+            </div>
+        )}
+    </div>
+  );
+
+
+  // 7. Render Utama
+  return (
+    <div className="min-h-screen bg-slate-950 text-white">
+
+      {showGPSModal && <GPSModal />}
+
+      {/* Navigasi / Header */}
+      <nav className="bg-slate-900/90 backdrop-blur-lg border-b border-cyan-700/50 sticky top-0 z-40">
+        <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-20">
+            <div className="flex items-center space-x-4">
+              {/* Logo SMI Modern */}
+              <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-2xl flex items-center justify-center shadow-2xl shadow-cyan-500/40 relative overflow-hidden">
+                <div className="absolute inset-0 bg-slate-900/10 [mask-image:radial-gradient(transparent_1px,black_1px)] [background-size:4px_4px]"></div>
+                <span className="text-white font-extrabold text-2xl relative z-10 tracking-widest">SMI</span>
+              </div>
+              <div>
+                <h1 className="text-2xl font-extrabold text-white">SMI</h1>
+                <p className="text-xs text-cyan-300 font-medium tracking-wider">Smart Manufacturing Indonesia</p>
+              </div>
+            </div>
+
+            {/* Fitur Edit Nama Pengguna */}
+            <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-3 text-slate-300 bg-slate-800/50 p-2 rounded-xl border border-slate-700">
+                    <User className="w-5 h-5 text-cyan-400 flex-shrink-0"/>
+
+                    {isEditingName ? (
+                        <input
+                            type="text"
+                            value={userName}
+                            onChange={(e) => setUserName(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && handleSaveName()}
+                            className="bg-transparent border-b border-cyan-500 focus:outline-none w-24 text-sm font-medium"
+                        />
+                    ) : (
+                        <span className="text-sm font-medium truncate max-w-32">{userName}</span>
+                    )}
+
+                    <button
+                        onClick={() => isEditingName ? handleSaveName() : setIsEditingName(true)}
+                        className="p-1 rounded-full text-slate-400 hover:text-cyan-400 hover:bg-slate-700 transition"
+                    >
+                        {isEditingName ? <Save className="w-4 h-4"/> : <Pencil className="w-4 h-4"/>}
+                    </button>
+                </div>
+
+                <button onClick={() => setShowSupplierSearch(!showSupplierSearch)} className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-xl font-semibold hover:from-cyan-600 hover:to-blue-600 transition-all shadow-lg shadow-blue-500/30 transform hover:scale-[1.05]">
+                    <Search className="w-5 h-5" />
+                    <span className="hidden sm:inline">AI Search</span>
+                    {showSupplierSearch ? <ChevronRight className='w-4 h-4 transform rotate-90' /> : <ChevronRight className='w-4 h-4' />}
+                </button>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <main className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-10">
+
+        {/* Pesan Selamat Datang */}
+        <div className="bg-slate-800/80 backdrop-blur-xl rounded-xl p-4 mb-8 border border-cyan-500/50 shadow-lg flex items-center space-x-3">
+            <User className="w-6 h-6 text-cyan-400"/>
+            <span className="text-white font-semibold">Selamat datang, {userName}! Semua fitur SMI aktif.</span>
+        </div>
+
+        {/* Fitur AI Procurement (Layout Baru) */}
+        <div className={`transition-all duration-500 ease-in-out ${showSupplierSearch ? 'opacity-100 max-h-[3000px] mb-12' : 'opacity-0 max-h-0 overflow-hidden mb-0'}`}>
+          <div className="bg-slate-800/80 backdrop-blur-xl rounded-3xl p-8 border border-cyan-500/50 shadow-3xl shadow-cyan-900/30">
+            <h2 className="text-3xl font-bold text-white mb-6 flex items-center space-x-3 border-b border-slate-700 pb-3">
+              <Zap className="w-7 h-7 text-cyan-400 animate-pulse" />
+              <span>AI Procurement: Pencarian Pemasok Cerdas (Integrasi Peta)</span>
+            </h2>
+            
+            {/* Wrapper 2 Kolom: Pencarian (Kiri) + Peta (Kanan) */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                
+                {/* Kolom Kiri: Panel Kontrol & Hasil */}
+                <div>
+                    {/* Status Lokasi */}
+                    {(isLoadingLocation || userLocation) && (
+                      <div className={`mb-4 p-4 rounded-xl text-sm font-medium flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0 ${userLocation && userLocation.lat !== JAKARTA_FALLBACK.lat ? 'bg-green-500/20 text-green-300 border border-green-500/50' : 'bg-red-500/20 text-red-300 border border-red-500/50'}`}>
+                        <div className="flex items-center space-x-3">
+                          {isLoadingLocation && <Loader2 className='w-4 h-4 animate-spin' />}
+                          {userLocation && userLocation.lat !== JAKARTA_FALLBACK.lat ? (
+                            <span className='flex items-center space-x-1'><MapPin className='w-4 h-4' /><span>Lokasi Pabrik Aktif: Lat {userLocation.lat.toFixed(4)}, Lng {userLocation.lng.toFixed(4)}</span></span>
+                          ) : (
+                            <span className='flex items-center space-x-1'><AlertTriangle className='w-4 h-4' /><span>{isLoadingLocation ? 'Mendapatkan lokasi GPS...' : 'Lokasi Pabrik belum terdeteksi (Gunakan GPS aktif untuk pencarian).'}</span></span>
+                          )}
+                        </div>
+                        <button
+                            onClick={() => setShowAIAssistant(true)}
+                            className="flex items-center space-x-1 px-3 py-1 bg-cyan-700/50 hover:bg-cyan-600/50 rounded-lg text-white transition text-xs font-semibold"
+                        >
+                            <HelpCircle className='w-4 h-4' />
+                            <span>Asisten Lokasi</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Input Pencarian */}
+                    <div className={`grid md:grid-cols-3 gap-4 mb-6`}>
+                      <div className='md:col-span-2'>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">Bahan Baku (Cari berdasarkan jenis atau nama perusahaan)</label>
+                        <input
+                          type="text"
+                          placeholder="Contoh: Baja, Plastik, Semen, Palm Oil, Rubber..."
+                          value={searchMaterial}
+                          onChange={(e) => setSearchMaterial(e.target.value)}
+                          className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition"
+                        />
+                      </div>
+                      <div className='flex items-end'>
+                        <button
+                          onClick={searchSuppliers}
+                          disabled={isSearching || !searchMaterial}
+                          className="w-full px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-xl font-semibold hover:from-cyan-600 hover:to-blue-600 transition-all shadow-lg shadow-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                        >
+                          {isSearching ? <Loader2 className='w-5 h-5 animate-spin' /> : <Search className="w-5 h-5" />}
+                          <span>{isSearching ? 'Mencari...' : 'Cari Supplier Terdekat'}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Riwayat Pencarian */}
+                    <SearchHistory />
+
+                    {/* Hasil Pencarian (Daftar) */}
+                    <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 mt-6">
+                        {isSearching && (
+                            <div className="p-4 text-center text-slate-400">
+                                <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
+                                AI sedang menghitung rute...
+                            </div>
+                        )}
+                        
+                        {searchResults.length > 0 && (
+                             <p className="text-sm font-medium text-cyan-300 border-b border-slate-700 pb-2">Ditemukan {searchResults.length} Pemasok (Klik untuk info di peta):</p>
+                        )}
+                        
+                        {searchResults.map((supplier, idx) => (
+                          <SupplierResult key={idx} supplier={supplier} isClosest={idx === 0} />
+                        ))}
+                        
+                        {searchMaterial && !isSearching && searchResults.length === 0 && (
+                            <div className="p-4 bg-red-500/20 text-red-300 border border-red-500/50 rounded-xl flex items-center space-x-2">
+                                <AlertTriangle className='w-4 h-4' />
+                                <span>Tidak ditemukan supplier dengan kriteria **{searchMaterial}**.</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Kolom Kanan: Peta Google Maps (Wrapper) */}
+                <MapComponent />
+            </div>
+          </div>
+        </div>
+
+        {/* Overview Departemen */}
+        <section className="mb-12">
+          <h2 className="text-3xl font-bold text-white mb-6 border-b border-slate-700 pb-3">Pusat Operasi Departemen </h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+            {departments.map((dept) => (
+              <DepartmentCard key={dept.id} dept={dept} />
+            ))}
+          </div>
+        </section>
+
+        {/* Detail Departemen dan Seksi */}
+        {selectedDepartment && (
+          <section className="bg-slate-800/80 backdrop-blur-xl rounded-3xl p-8 border border-slate-700 shadow-2xl">
+            <h2 className="text-3xl font-bold text-white mb-6 border-b border-slate-700 pb-3">{selectedDepartment.name}</h2>
+
+            <div className="grid md:grid-cols-3 gap-6">
+              {/* Kolom Seksi */}
+              <div className="md:col-span-1 space-y-3">
+                <h4 className='text-sm font-semibold text-slate-400 mb-2'>Pilih Bagian:</h4>
+                {selectedDepartment.sections.map((section, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setSelectedSection(section)}
+                    className={`text-left p-4 w-full rounded-xl border transition-all duration-200 flex items-center justify-between ${
+                      selectedSection?.name === section.name
+                        ? 'bg-cyan-600/50 border-cyan-400 text-white font-semibold'
+                        : 'bg-slate-700/30 border-slate-600 hover:bg-slate-600/50 text-slate-200'
+                    }`}
+                  >
+                    {section.name}
+                    <ChevronRight className='w-5 h-5 ml-2' />
+                  </button>
+                ))}
+              </div>
+
+              {/* Detail Seksi */}
+              <div className="md:col-span-2">
+                {selectedSection ? (
+                  <SectionDetail section={selectedSection} />
+                ) : (
+                  <div className="p-8 h-full rounded-2xl border-2 border-dashed border-slate-600 flex items-center justify-center bg-slate-700/30">
+                    <p className="text-xl text-slate-400">← Pilih salah satu bagian di departemen {selectedDepartment.name} untuk melihat detail tugas dan kontak.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
+      </main>
+
+      {/* Asisten AI Chatbot */}
+      {showAIAssistant && <AIAssistant />}
+
+      {/* Footer */}
+      <footer className="mt-12 py-6 text-center border-t border-slate-800 bg-slate-900/50">
+        <p className="text-slate-500 text-sm">© 2025 SMI | Smart Manufacturing Indonesia. Dioptimalkan oleh Google Gemini & Google Maps.</p>
+      </footer>
+    </div>
+  );
+};
+
+export default App;
